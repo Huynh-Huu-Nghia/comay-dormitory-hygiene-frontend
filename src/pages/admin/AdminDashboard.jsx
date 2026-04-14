@@ -12,12 +12,20 @@ const AdminDashboard = () => {
   // Gọi Logic từ Hook
   const { reports, selectedDate, setSelectedDate, filter, setFilter, handleAction } = useAdminData();
   
-  // State cục bộ chỉ dùng để đóng mở Modal
+  // State cục bộ dùng để đóng mở Modal
   const [historyModal, setHistoryModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null); 
 
-  // Tìm data "tươi" nhất từ kho reports dựa trên mã phòng đang được chọn
+  // Tìm data mới nhất từ kho reports dựa trên mã phòng đang được chọn
   const activeModalData = detailModal ? reports.find(r => r.room === detailModal.room) : null;
+  // Đếm số lượng phòng ở từng trạng thái
+  const statusCounts = {
+  ALL: reports.length,
+  PENDING: reports.filter(r => r.overallStatus === 'PENDING').length,
+  REVIEWING: reports.filter(r => r.overallStatus === 'READY_TO_REVIEW').length,
+  REJECTED: reports.filter(r => r.overallStatus === 'REJECTED' || r.logs?.some(l => l.status === 'REJECTED')).length,
+  APPROVED: reports.filter(r => r.overallStatus === 'APPROVED' && r.total > 0).length,
+};
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
@@ -66,7 +74,11 @@ const AdminDashboard = () => {
                   filter === f ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                {f === 'ALL' ? 'Tất cả' : f === 'PENDING' ? 'Chưa làm' : f === 'REVIEWING' ? 'Chờ duyệt' : f === 'REJECTED' ? 'Làm lại' : 'Hoàn tất'}
+                {f === 'ALL' && `Tất cả (${statusCounts.ALL})`}
+                {f === 'PENDING' && `Chưa làm (${statusCounts.PENDING})`}
+                {f === 'REVIEWING' && `Chờ duyệt (${statusCounts.REVIEWING})`}
+                {f === 'REJECTED' && `Làm lại (${statusCounts.REJECTED})`}
+                {f === 'APPROVED' && `Hoàn tất (${statusCounts.APPROVED})`}              
               </button>
             ))}
           </div>
