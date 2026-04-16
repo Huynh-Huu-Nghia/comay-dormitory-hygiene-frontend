@@ -45,7 +45,9 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
   };
 
   return (
-    <div className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-6 shadow-sm transition-all hover:shadow-xl
+    <div 
+      onClick={() => onViewDetails(data)}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-6 shadow-sm transition-all hover:shadow-xl cursor-pointer
       ${data.hasNote ? 'border-yellow-300' : 'border-slate-200 hover:border-blue-200'}
       ${isEmptyRoom ? 'opacity-90' : ''}
     `}>
@@ -108,12 +110,7 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
               {renderAssigneeText()}
             </span>
           </div>
-          <button 
-            onClick={() => onViewDetails(data)}
-            className="flex items-center text-[10px] font-black text-blue-600 hover:underline"
-          >
-            Chi tiết <ChevronRight className="h-3 w-3" />
-          </button>
+          {/* Đã gỡ bỏ nút Chi tiết theo yêu cầu */}
         </div>
       </div>
 
@@ -125,13 +122,19 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
             data.canBulkAction ? (
               <>
                 <button 
-                  onClick={() => onAction(data.room, 'REJECTED_ALL')} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(data.room, 'REJECTED_ALL');
+                  }} 
                   className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white text-[10px] font-black text-red-500 transition-colors hover:border-red-200 hover:bg-red-50"
                 >
                   <X className="h-4 w-4" /> BẮT LÀM LẠI
                 </button>
                 <button 
-                  onClick={() => onAction(data.room, 'APPROVED_ALL')} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(data.room, 'APPROVED_ALL');
+                  }} 
                   className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500 text-[10px] font-black text-white shadow-md shadow-emerald-100 transition-all hover:bg-emerald-600"
                 >
                   <Check className="h-4 w-4" /> DUYỆT NHANH
@@ -158,7 +161,10 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
           <button 
             title="Xem lịch sử duyệt"
             aria-label={`Xem lịch sử duyệt phòng ${data.room}`}
-            onClick={() => onViewHistory(data)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewHistory(data);
+            }}
             className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
               hasBeenRejected 
                 ? 'border-rose-300 bg-rose-50 text-rose-600 shadow-sm shadow-rose-100 hover:bg-rose-100'
