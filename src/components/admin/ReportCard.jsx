@@ -110,7 +110,7 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
               {renderAssigneeText()}
             </span>
           </div>
-          {/* Đã gỡ bỏ nút Chi tiết theo yêu cầu */}
+          {/* Nút Chi Tiết đã được gỡ bỏ theo yêu cầu, nhường sự kiện click cho toàn bộ Card */}
         </div>
       </div>
 
@@ -123,21 +123,21 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
               <>
                 <button 
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Ngăn sự kiện click nổi bọt lên Card
                     onAction(data.room, 'REJECTED_ALL');
                   }} 
                   className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white text-[10px] font-black text-red-500 transition-colors hover:border-red-200 hover:bg-red-50"
                 >
-                  <X className="h-4 w-4" /> BẮT LÀM LẠI
+                  <X className="h-4 w-4" /> LÀM LẠI
                 </button>
                 <button 
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Ngăn sự kiện click nổi bọt lên Card
                     onAction(data.room, 'APPROVED_ALL');
                   }} 
                   className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500 text-[10px] font-black text-white shadow-md shadow-emerald-100 transition-all hover:bg-emerald-600"
                 >
-                  <Check className="h-4 w-4" /> DUYỆT NHANH
+                  <Check className="h-4 w-4" /> DUYỆT
                 </button>
               </>
             ) : (
@@ -162,7 +162,7 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
             title="Xem lịch sử duyệt"
             aria-label={`Xem lịch sử duyệt phòng ${data.room}`}
             onClick={(e) => {
-              e.stopPropagation();
+              e.stopPropagation(); // Ngăn chặn sự kiện nổi bọt (event bubbling)
               onViewHistory(data);
             }}
             className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${

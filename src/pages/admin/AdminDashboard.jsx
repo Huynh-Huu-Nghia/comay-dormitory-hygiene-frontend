@@ -6,30 +6,59 @@ import useAdminData from '../../hooks/admin/useAdminData';
 import ReportCard from '../../components/admin/ReportCard';
 import HistoryModal from '../../components/admin/HistoryModal';
 import RoomDetailModal from '../../components/admin/RoomDetailModal';
+import ActionConfirmModal from '../../components/admin/ActionConfirmModal';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  // Gọi Logic từ Hook
+  
+  // Tầng dữ liệu: Gọi Logic từ Hook
   const { reports, selectedDate, setSelectedDate, filter, setFilter, handleAction } = useAdminData();
   
-  // State cục bộ dùng để đóng mở Modal
+  // Tầng giao diện: State quản lý hiển thị Modal
   const [historyModal, setHistoryModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null); 
+  
+  // Tầng điều phối: State quản lý luồng xác nhận hành động (Interceptor)
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null); 
 
-  // Tìm data mới nhất từ kho reports dựa trên mã phòng đang được chọn
+  // Truy xuất dữ liệu realtime cho Modal Chi tiết
   const activeModalData = detailModal ? reports.find(r => r.room === detailModal.room) : null;
-  // Đếm số lượng phòng ở từng trạng thái
+  
+  // Tính toán bộ thống kê
   const statusCounts = {
-  ALL: reports.length,
-  PENDING: reports.filter(r => r.overallStatus === 'PENDING').length,
-  REVIEWING: reports.filter(r => r.overallStatus === 'READY_TO_REVIEW').length,
-  REJECTED: reports.filter(r => r.overallStatus === 'REJECTED' || r.logs?.some(l => l.status === 'REJECTED')).length,
-  APPROVED: reports.filter(r => r.overallStatus === 'APPROVED' && r.total > 0).length,
-};
+    ALL: reports.length,
+    PENDING: reports.filter(r => r.overallStatus === 'PENDING').length,
+    REVIEWING: reports.filter(r => r.overallStatus === 'READY_TO_REVIEW').length,
+    REJECTED: reports.filter(r => r.overallStatus === 'REJECTED' || r.logs?.some(l => l.status === 'REJECTED')).length,
+    APPROVED: reports.filter(r => r.overallStatus === 'APPROVED' && r.total > 0).length,
+  };
+
+  // Hàm phân luồng (Interceptor): Quyết định hành động nào cần xác nhận lý do
+  const handleActionRequest = (room, actionType, studentId = null) => {
+    // Chặn luồng và yêu cầu nhập lý do đối với các quyết định TỪ CHỐI
+    if (actionType.includes('REJECTED')) {
+      setConfirmModalConfig({
+        room, 
+        actionType, 
+        studentId, 
+        title: studentId ? 'Yêu cầu cá nhân làm lại' : 'Yêu cầu TOÀN BỘ PHÒNG làm lại',
+      });
+    } else {
+      // Bỏ qua bước xác nhận đối với các quyết định DUYỆT (Thực thi ngay)
+      handleAction(room, actionType, studentId, '');
+    }
+  };
+
+  // Hàm thực thi cuối cùng nhận dữ liệu trả về từ Popup
+  const executeConfirmedAction = (room, actionType, studentId, note) => {
+    handleAction(room, actionType, studentId, note);
+    setConfirmModalConfig(null);
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
-      {/* 1. SIDEBAR VÀ HEADER ĐÃ ĐƯỢC TÁCH KHỐI RÕ RÀNG */}
+      
+      {/* ================= SIDEBAR ================= */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col p-6">
         <div className="flex items-center gap-3 mb-10">
           <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
@@ -48,6 +77,8 @@ const AdminDashboard = () => {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* ================= HEADER ================= */}
         <header className="bg-white border-b border-slate-200 p-8 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Quản lý vệ sinh</h2>
@@ -65,7 +96,8 @@ const AdminDashboard = () => {
         </header>
 
         <div className="p-8 overflow-y-auto">
-          {/* 2. CỤM BỘ LỌC */}
+          
+          {/* ================= CỤM BỘ LỌC ================= */}
           <div className="flex gap-3 mb-8">
             {['ALL', 'PENDING', 'REVIEWING', 'REJECTED', 'APPROVED'].map(f => (
               <button 
@@ -83,33 +115,42 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          {/* 3. LƯỚI DATA GỌI SẠCH SẼ QUA COMPONENT TÁCH RỜI */}
+          {/* ================= LƯỚI DỮ LIỆU CHÍNH ================= */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {reports.map(item => (
               <ReportCard 
                 key={item.id} 
                 data={item} 
-                onAction={handleAction} 
+                onAction={handleActionRequest} 
                 onViewHistory={setHistoryModal} 
-                onViewDetails={setDetailModal} // Gắn vào đây
+                onViewDetails={setDetailModal} 
               />
             ))}
           </div>
         </div>
         
-        {/* ================= KHU VỰC MODAL ĐÃ ĐƯỢC DỌN DẸP ================= */}
+        {/* ================= KHU VỰC QUẢN LÝ MODAL ================= */}
         
         <HistoryModal 
           data={historyModal} 
           onClose={() => setHistoryModal(null)} 
         />
 
-        {/* Dùng activeModalData thay cho detailModal */}
         {activeModalData && (
           <RoomDetailModal 
             data={activeModalData} 
             onClose={() => setDetailModal(null)}
-            onAction={handleAction} 
+            onAction={handleActionRequest} 
+          />
+        )}
+
+        {/* Dynamic Rendering: Đảm bảo state nội bộ của Popup luôn được làm sạch mỗi khi mở mới */}
+        {confirmModalConfig && (
+          <ActionConfirmModal 
+            isOpen={true}
+            config={confirmModalConfig}
+            onClose={() => setConfirmModalConfig(null)}
+            onConfirm={executeConfirmedAction}
           />
         )}
 

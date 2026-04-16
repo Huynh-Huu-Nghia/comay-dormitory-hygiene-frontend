@@ -1,32 +1,33 @@
 // src/components/admin/RoomDetailModal.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { X, Check, CheckSquare, XCircle, Clock, User, Paperclip, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const RoomDetailModal = ({ data, onClose, onAction }) => {
-  const [adminNote, setAdminNote] = useState('');
-  
   if (!data) return null;
 
-  // Tiêu chí mẫu (Hardcode dùng tạm để test luồng)
+  // Tiêu chí mẫu để đánh giá phòng
   const sampleCriteria = [
     { id: 1, text: 'Sàn nhà khô ráo, không rác' },
     { id: 2, text: 'Bồn rửa mặt sạch sẽ' },
     { id: 3, text: 'Đã đổ rác' }
   ];
 
-  // Hàm xử lý logic Duyệt/Từ chối tách biệt cho gọn JSX
+  // Các biến trạng thái điều hướng UI (Đồng bộ logic với ReportCard)
+  const isReadyOrProgress = data.overallStatus === 'READY_TO_REVIEW' || data.overallStatus === 'IN_PROGRESS';
+
+  // Hàm xử lý hành động cho từng cá nhân
   const handleStudentAction = (student, actionType) => {
-    onAction(data.room, actionType, student.id, adminNote);
+    // Ràng buộc an toàn: Chỉ cho phép thao tác khi sinh viên đang ở trạng thái chờ duyệt
+    if (student.status !== 'REVIEWING') return;
+
+    // Truyền lệnh lên component cha xử lý (Dashboard sẽ lo việc phân luồng mở Popup hay duyệt thẳng)
+    onAction(data.room, actionType, student.id);
     
+    // Phản hồi UI tức thì khi duyệt thành công
     if (actionType === 'APPROVED') {
       toast.success(`Đã duyệt báo cáo của ${student.name}!`);
-    } else {
-      toast.error(`Đã yêu cầu ${student.name} làm lại!`);
     }
-    
-    // Xóa trắng ghi chú sau khi thực hiện hành động
-    setAdminNote('');
   };
 
   return (
@@ -43,7 +44,6 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
           <div>
             <h3 id="modal-title" className="text-xl font-black text-slate-900">Chi tiết phòng {data.room}</h3>
             
-            {/* THÊM HIỂN THỊ GIỜ TRỰC CHO ADMIN */}
             <div className="mt-1.5 flex items-center gap-2">
               <span className="text-sm font-bold text-blue-600">{data.taskName}</span>
               {data.timeFrame && (
@@ -70,7 +70,7 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6 custom-scrollbar">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             
-            {/* Cột 1: Tiêu chí chấm điểm mẫu & Ghi chú */}
+            {/* CỘT 1: Tiêu chí kiểm tra & Thao tác tổng */}
             <div className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h4 className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800">
                 <CheckSquare className="h-4 w-4 text-blue-500" /> TIÊU CHÍ KIỂM TRA (MẪU)
@@ -84,16 +84,37 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
                 ))}
               </div>
               
-              <textarea 
-                className="mt-5 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all" 
-                placeholder="Ghi chú thêm của BTQ (nếu có)..."
-                rows="3"
-                value={adminNote}
-                onChange={(e) => setAdminNote(e.target.value)}
-              />
+              {/* Khu vực thao tác chung cho toàn phòng (Đồng bộ logic từ ReportCard) */}
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                {isReadyOrProgress && (
+                  data.canBulkAction ? (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => onAction(data.room, 'REJECTED_ALL')}
+                        className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white text-[10px] font-black text-rose-500 transition-colors hover:border-rose-200 hover:bg-rose-50"
+                      >
+                        <XCircle className="h-4 w-4" /> LÀM LẠI
+                      </button>
+                      <button 
+                        onClick={() => {
+                          onAction(data.room, 'APPROVED_ALL');
+                          toast.success(`Đã duyệt toàn bộ phòng ${data.room}!`);
+                        }}
+                        className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500 text-[10px] font-black text-white shadow-md shadow-emerald-100 transition-all hover:bg-emerald-600"
+                      >
+                        <Check className="h-4 w-4" /> DUYỆT
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex h-10 w-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[10px] font-black text-slate-400">
+                       <Clock className="mr-1 h-3.5 w-3.5" /> CHƯA HẾT GIỜ (CHỜ NỘP)
+                    </div>
+                  )
+                )}
+              </div>
             </div>
 
-            {/* Cột 2: Tiến độ từng cá nhân */}
+            {/* CỘT 2: Tiến độ từng cá nhân */}
             <div className="space-y-4">
               <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
                 <User className="h-4 w-4 text-emerald-500" /> TIẾN ĐỘ THÀNH VIÊN
@@ -113,7 +134,6 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
                       </span>
                     </div>
 
-                    {/* KHU VỰC HIỂN THỊ GHI CHÚ CỦA SINH VIÊN */}
                     {student.note && (
                       <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 shadow-inner">
                         <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-yellow-600">
@@ -123,7 +143,6 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
                       </div>
                     )}
 
-                    {/* Nút xem minh chứng */}
                     {student.status !== 'PENDING' ? (
                       <button className="flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border border-dashed border-blue-200 bg-blue-50 text-xs font-bold text-blue-600 transition hover:bg-blue-100">
                         <Paperclip className="mr-1.5 h-4 w-4" /> Xem ảnh minh chứng
@@ -134,7 +153,7 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
                       </div>
                     )}
 
-                    {/* Nút hành động cá nhân */}
+                    {/* Vùng thao tác cá nhân */}
                     {isReviewing && (
                       <div className="mt-1 flex gap-2">
                         <button 
@@ -152,7 +171,7 @@ const RoomDetailModal = ({ data, onClose, onAction }) => {
                       </div>
                     )}
                     
-                    {/* Trạng thái đã chốt */}
+                    {/* Trạng thái kết quả */}
                     {isApproved && (
                       <div className="flex items-center justify-center gap-1 rounded-xl border border-emerald-100 bg-emerald-50 py-2.5 text-[10px] font-black text-emerald-500">
                         <Check className="h-4 w-4" /> ĐÃ ĐẠT YÊU CẦU
