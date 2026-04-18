@@ -258,6 +258,53 @@ const useAdminData = () => {
     setForceRender(prev => prev + 1);
   }, [allReports]);
 
+  // --- THAO TÁC HÀNG LOẠT CHO NHIỀU PHÒNG (EXTENDED LOGIC) ---
+  const handleApproveAll = useCallback(() => {
+    let hasChanges = false;
+
+    // Duyệt qua danh sách allReports đã được xử lý ở useEffect trên
+    allReports.forEach(roomData => {
+      // Chỉ xử lý những phòng có người đang chờ duyệt (READY_TO_REVIEW hoặc IN_PROGRESS)
+      if (roomData.overallStatus === 'READY_TO_REVIEW' || roomData.overallStatus === 'IN_PROGRESS') {
+        const roomId = roomData.room;
+        const statusKey = `task_${roomId}_statuses`;
+        const currentStatuses = safeJSONParse(statusKey, {});
+        let isRoomChanged = false;
+
+        // Chỉ duyệt cho những sinh viên thực sự đang ở trạng thái REVIEWING
+        Object.keys(currentStatuses).forEach(id => {
+          if (currentStatuses[id] === 'REVIEWING') {
+            currentStatuses[id] = 'APPROVED';
+            isRoomChanged = true;
+            hasChanges = true;
+          }
+        });
+
+        // Chỉ lưu và ghi log nếu phòng đó thực sự có sự thay đổi
+        if (isRoomChanged) {
+          localStorage.setItem(statusKey, JSON.stringify(currentStatuses));
+          
+          const logsKey = `logs_${roomId}`;
+          const currentLogs = safeJSONParse(logsKey, []);
+          currentLogs.push({
+            action: 'APPROVED',
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            note: "Ban tự quản đã duyệt nhanh báo cáo cho tất cả thành viên đã hoàn thành trong phòng."
+          });
+          localStorage.setItem(logsKey, JSON.stringify(currentLogs));
+        }
+      }
+    });
+
+    if (hasChanges) {
+      // Tận dụng logic re-render của bạn
+      setForceRender(prev => prev + 1);
+      alert("Đã duyệt toàn bộ các báo cáo đang chờ!");
+    } else {
+      alert("Không có báo cáo nào đang ở trạng thái chờ duyệt.");
+    }
+  }, [allReports]);
+
   // Trả về reports dưới dạng filtered data để UI component sử dụng trực tiếp
   return { 
     reports: filteredReports, 
@@ -265,7 +312,8 @@ const useAdminData = () => {
     setSelectedDate, 
     filter, 
     setFilter, 
-    handleAction 
+    handleAction,
+    handleApproveAll
   };
 };
 
