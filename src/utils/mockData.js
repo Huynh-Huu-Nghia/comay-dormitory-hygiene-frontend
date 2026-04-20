@@ -112,7 +112,7 @@ export const MOCK_SCHEDULES = [
     date: TODAY,
     roomId: '102',
     taskCode: 'TAKE_OUT_TRASH',
-    timeFrame: '00:00 - 08:00', // Đã lố giờ
+    timeFrame: '00:00 - 00:13', // Đã lố giờ
     assignees: [
       { id: '25521011', name: 'Hùng' },
       { id: '25521012', name: 'Dũng' },
@@ -127,7 +127,7 @@ export const MOCK_SCHEDULES = [
     date: TODAY,
     roomId: '103',
     taskCode: 'SWEEP_CORRIDOR',
-    timeFrame: '00:00 - 23:59',
+    timeFrame: '00:00 - 00:13',
     assignees: [], // Trống để test luồng tự nộp -> chờ trưởng phòng duyệt
     status: 'PENDING',
     isLate: false,

@@ -46,10 +46,11 @@ const HistoryModal = ({ data, onClose }) => {
               {data.logs.map((log, index) => {
                 const isReject = log.action === 'REJECTED';
                 const isApprove = log.action === 'APPROVED';
+                const isFailed = log.action === 'FAILED';
                 const isLeader = log.note.includes('Trưởng phòng');
                 
                 // Admin Action chỉ khi nào KHÔNG phải của trưởng phòng
-                const isAdminAction = (isReject || isApprove) && !isLeader; 
+                const isAdminAction = (isReject || isApprove || isFailed) && !isLeader; 
                 
                 let title = 'Nộp báo cáo';
                 let colors = { text: 'text-blue-600', iconBg: 'bg-blue-100 text-blue-600' };
@@ -60,11 +61,16 @@ const HistoryModal = ({ data, onClose }) => {
                     title = 'Yêu cầu làm lại';
                     Icon = X; 
                     colors = { text: 'text-rose-600', iconBg: 'bg-rose-100 text-rose-600' };
-                  } else {
+                  } else if (isApprove) {
                     title = 'Duyệt hoàn tất';
                     Icon = Check; 
                     colors = { text: 'text-emerald-600', iconBg: 'bg-emerald-100 text-emerald-600' };
+                  } else {
+                    title = 'Không hoàn thành';
+                    Icon = X;
+                    colors = { text: 'text-orange-600', iconBg: 'bg-orange-100 text-orange-600' };
                   }
+
                 } else if (isLeader) {
                   title = 'Trưởng phòng đã duyệt';
                   Icon = Check; 

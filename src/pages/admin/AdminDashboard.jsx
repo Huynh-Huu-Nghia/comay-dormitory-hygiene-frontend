@@ -1,7 +1,7 @@
 // src/pages/admin/AdminDashboard.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, LogOut, CalendarDays, LayoutDashboard, X, Check, Clock } from 'lucide-react';
+import { CheckSquare, LogOut, CalendarDays, LayoutDashboard, X, Check, Clock, XSquare, ScanSearch, CheckCheck } from 'lucide-react';
 import useAdminData from '../../hooks/admin/useAdminData';
 import ReportCard from '../../components/admin/ReportCard';
 import HistoryModal from '../../components/admin/HistoryModal';
@@ -12,7 +12,15 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   
   // Tầng dữ liệu: Gọi Logic từ Hook
-  const { reports, selectedDate, setSelectedDate, filter, setFilter, handleAction, handleApproveAll } = useAdminData();  
+  const { allReports, 
+          reports, 
+          selectedDate, 
+          setSelectedDate, 
+          filter, 
+          setFilter, 
+          handleAction, 
+          handleApproveAll,
+          handleRejectNonCompliantReports} = useAdminData();  
   // Tầng giao diện: State quản lý hiển thị Modal
   const [historyModal, setHistoryModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null); 
@@ -25,11 +33,12 @@ const AdminDashboard = () => {
   
   // Tính toán bộ thống kê
   const statusCounts = {
-    ALL: reports.length,
-    PENDING: reports.filter(r => r.overallStatus === 'PENDING').length,
-    REVIEWING: reports.filter(r => r.overallStatus === 'READY_TO_REVIEW').length,
-    REJECTED: reports.filter(r => r.overallStatus === 'REJECTED' || r.logs?.some(l => l.status === 'REJECTED')).length,
-    APPROVED: reports.filter(r => r.overallStatus === 'APPROVED' && r.total > 0).length,
+    ALL: allReports.length,
+    PENDING: allReports.filter(r => r.overallStatus === 'PENDING').length,
+    REVIEWING: allReports.filter(r => r.overallStatus === 'READY_TO_REVIEW').length,
+    REJECTED: allReports.filter(r => r.overallStatus === 'REJECTED' || r.logs?.some(l => l.status === 'REJECTED')).length,
+    APPROVED: allReports.filter(r => r.overallStatus === 'APPROVED' && r.total > 0).length,
+    NOT_COMPLETED: allReports.filter(r =>  r.overallStatus === 'NOT_COMPLETED').length,
   };
 
   // Hàm phân luồng (Interceptor): Quyết định hành động nào cần xác nhận lý do
@@ -86,12 +95,52 @@ const AdminDashboard = () => {
           
           {/* Cụm chức năng bên phải */}
           <div className="flex items-center gap-4">
-            <button 
-              onClick={handleApproveAll}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-sm active:scale-95"
-            >
-              <CheckSquare className="h-5 w-5" /> Duyệt toàn bộ
-            </button>
+            <div className="flex items-center gap-4">
+              {/* Nút Quét vi phạm - System Warning Action */}
+              <button
+                onClick={handleRejectNonCompliantReports}
+                title="Hệ thống sẽ tự động quét và đánh dấu vi phạm các phòng quá hạn"
+                className="group relative flex items-center gap-2 px-5 py-2.5 rounded-xl 
+                text-sm font-semibold text-rose-600 bg-white 
+                border border-rose-200 shadow-sm
+                hover:border-rose-300 hover:bg-rose-50 hover:shadow-rose-100/50 
+                focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:ring-offset-1
+                transition-all duration-300 ease-out active:scale-95"
+              >
+                <ScanSearch 
+                  size={18} 
+                  strokeWidth={2} 
+                  className="text-rose-500 transition-transform duration-300 group-hover:rotate-12" 
+                />
+                <span>Quét vi phạm</span>
+                
+                {/* Vòng tròn ping nhỏ gọn tạo cảm giác hệ thống đang "sống" */}
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-white"></span>
+                </span>
+              </button>
+
+              {/* Nút Duyệt toàn bộ - Primary Success Action */}
+              <button 
+                onClick={handleApproveAll}
+                title="Duyệt tất cả các báo cáo đang chờ"
+                className="group flex items-center gap-2 px-6 py-2.5 rounded-xl 
+                text-sm font-semibold text-white 
+                bg-gradient-to-r from-emerald-500 to-teal-600 
+                border border-transparent shadow-md shadow-emerald-200/50
+                hover:from-emerald-400 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-300/40
+                focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1
+                transition-all duration-300 ease-out active:scale-95"
+              >
+                <CheckCheck 
+                  size={18} 
+                  strokeWidth={2} 
+                  className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-110" 
+                />
+                <span>Duyệt toàn bộ</span>
+              </button>
+            </div>
             <div className="flex items-center gap-3 bg-slate-100 p-3 rounded-xl border border-slate-200">
               <CalendarDays className="text-blue-600 h-5 w-5" />
               <input 
@@ -108,7 +157,7 @@ const AdminDashboard = () => {
           
           {/* ================= CỤM BỘ LỌC ================= */}
           <div className="flex gap-3 mb-8">
-            {['ALL', 'PENDING', 'REVIEWING', 'REJECTED', 'APPROVED'].map(f => (
+            {['ALL', 'PENDING', 'REVIEWING', 'REJECTED', 'APPROVED', 'NOT_COMPLETED'].map(f => (
               <button 
                 key={f} onClick={() => setFilter(f)}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${
@@ -119,7 +168,8 @@ const AdminDashboard = () => {
                 {f === 'PENDING' && `Chưa làm (${statusCounts.PENDING})`}
                 {f === 'REVIEWING' && `Chờ duyệt (${statusCounts.REVIEWING})`}
                 {f === 'REJECTED' && `Làm lại (${statusCounts.REJECTED})`}
-                {f === 'APPROVED' && `Hoàn tất (${statusCounts.APPROVED})`}              
+                {f === 'APPROVED' && `Hoàn tất (${statusCounts.APPROVED})`}  
+                {f === 'NOT_COMPLETED' && `Không hoàn thành (${statusCounts.NOT_COMPLETED})`}            
               </button>
             ))}
           </div>

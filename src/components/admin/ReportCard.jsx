@@ -72,15 +72,15 @@ const ReportCard = ({ data, onAction, onViewHistory, onViewDetails }) => {
             </span>
           )}
 
-          {isEmptyRoom ? (
-            <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-[9px] font-black uppercase text-slate-500">
-              CHƯA PHÂN CÔNG
-            </span>
-          ) : (
-            <span className={`rounded-lg border px-2 py-1 text-[9px] font-black uppercase ${getBadgeStyle()}`}>
+            <span className={`rounded-lg border px-2 py-1 text-[9px] font-black uppercase ${
+              data.overallStatus === 'NOT_COMPLETED'
+                ? 'bg-rose-50 text-rose-600 border-rose-100'
+                : isEmptyRoom
+                  ? 'bg-slate-100 text-slate-500 border-slate-200'
+                  : getBadgeStyle()
+            }`}>
               {data.progressText}
             </span>
-          )}
         </div>
       </div>
 

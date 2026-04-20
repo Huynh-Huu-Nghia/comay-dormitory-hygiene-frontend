@@ -65,9 +65,17 @@ const isShiftOver = (timeFrame) => {
  * @returns {{ overallStatus: string, progressText: string }} Trạng thái hệ thống và Text hiển thị cho UI.
  */
 const calculateRoomStatus = (total, approved, reviewing, rejected, pending, shiftIsOver) => {
-  // Case 1: Phòng trống
+ 
+  // Case 0: Phòng trống
   if (total === 0) {
-    return { overallStatus: 'PENDING', progressText: 'Chưa phân công' };
+  return shiftIsOver
+    ? { overallStatus: 'NOT_COMPLETED', progressText: 'Không hoàn thành' }
+    : { overallStatus: 'PENDING', progressText: 'Chưa phân công' };
+}
+
+    // Case 1: Hết giờ + KHÔNG có ai được duyệt => Cả phòng KHÔNG HOÀN THÀNH
+  if (shiftIsOver && approved === 0 && reviewing === 0) {
+    return { overallStatus: 'NOT_COMPLETED', progressText: 'Không hoàn thành' };
   }
 
   // Case 2: Đã hoàn tất (Có người đạt, không ai kẹt ở khâu chờ duyệt/làm lại, và (hết giờ hoặc mọi người đều đã nộp))
@@ -182,6 +190,8 @@ const useAdminData = () => {
         return allReports.filter(r => r.overallStatus === 'NEEDS_FIX');
       case 'APPROVED':
         return allReports.filter(r => r.overallStatus === 'APPROVED');
+      case 'NOT_COMPLETED':
+        return allReports.filter(r => r.overallStatus === 'NOT_COMPLETED');
       case 'ALL':
       default:
         return allReports;
@@ -195,7 +205,10 @@ const useAdminData = () => {
     const currentStatuses = safeJSONParse(statusKey, {});
     
     let actionNote = '';
-    const logAction = actionType.includes('APPROVED') ? 'APPROVED' : 'REJECTED';
+    
+    let logAction = 'REJECTED';
+    if (actionType === 'APPROVED') logAction = 'APPROVED';
+    if (actionType === 'NOT_COMPLETED') logAction = 'FAILED';
 
     // Lấy data phòng từ Master Data (allReports) để tránh bug mất data khi đang ở các tab filter cụ thể
     const roomData = allReports.find(r => r.room === roomId);
@@ -231,8 +244,18 @@ const useAdminData = () => {
     // 2. Xử lý Individual Action (Thao tác cá nhân)
     else if (studentId) {
       currentStatuses[studentId] = actionType;
+
       const studentName = roomData.assignees?.find(a => a.id === studentId)?.name || 'sinh viên';
-      actionNote = `Ban tự quản đã ${actionType === 'APPROVED' ? 'duyệt' : 'yêu cầu làm lại'} báo cáo của ${studentName}`;
+
+      if (actionType === 'APPROVED') {
+        actionNote = `Ban tự quản đã duyệt báo cáo của ${studentName}`;
+      } 
+      else if (actionType === 'REJECTED') {
+        actionNote = `Ban tự quản đã yêu cầu ${studentName} làm lại báo cáo`;
+      } 
+      else if (actionType === 'NOT_COMPLETED') {
+        actionNote = `Ban tự quản đã ghi nhận ${studentName} không hoàn thành nhiệm vụ`;
+      }
     }
 
     // --- LƯU VÀO DATABASE (MÔ PHỎNG QUA LOCALSTORAGE) ---
@@ -242,8 +265,13 @@ const useAdminData = () => {
     const currentLogs = safeJSONParse(logsKey, []);
     
     // Gắn thêm ghi chú của Admin nếu có
+    let note = 'Lời nhắn từ BTQ: ';
+    if (actionType === 'NOT_COMPLETED') {
+      note = 'Lời nhắn từ hệ thống: ';
+    }
+
     const finalNote = adminNote && adminNote.trim() !== '' 
-      ? `${actionNote}\nLời nhắn từ BTQ: ${adminNote}`
+      ? `${actionNote}\n${note}: ${adminNote}`
       : actionNote;
 
     currentLogs.push({
@@ -305,15 +333,67 @@ const useAdminData = () => {
     }
   }, [allReports]);
 
+  //THAO TÁC QUÉT CÁC PHÒNG VI PHẠM
+  const handleRejectNonCompliantReports = useCallback(() => {
+  let hasChanges = false;
+
+  allReports.forEach(room => {
+    if (!room.canBulkAction) return;
+
+    // CASE 1: Không phân công
+    if (room.assignees.length === 0) {
+      const logsKey = `logs_${room.room}`;
+      const currentLogs = safeJSONParse(logsKey, []);
+
+      currentLogs.push({
+        action: 'FAILED',
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        note: "Phòng không phân công nhiệm vụ và không hoàn thành công việc"
+      });
+
+      localStorage.setItem(logsKey, JSON.stringify(currentLogs));
+      hasChanges = true;
+      return;
+    }
+
+    // CASE 2: Có người không làm
+    const violatedStudents = room.assignees.filter(s => s.status === 'PENDING');
+
+    if (violatedStudents.length === 0) return;
+
+    const names = violatedStudents.map(s => s.name).join(', ');
+
+    const logsKey = `logs_${room.room}`;
+    const currentLogs = safeJSONParse(logsKey, []);
+
+    currentLogs.push({
+      action: 'FAILED',
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      note: `Phòng có ${violatedStudents.length} sinh viên không hoàn thành nhiệm vụ: ${names}\nLời nhắn từ hệ thống: Không hoàn thành nhiệm vụ trong thời gian quy định`
+    });
+
+    localStorage.setItem(logsKey, JSON.stringify(currentLogs));
+    hasChanges = true;
+  });
+
+  if (hasChanges) {
+    alert("Đã chốt các trường hợp vi phạm!");
+  } else {
+    alert("Hiện tại chưa có phòng vi phạm.");
+  }
+}, [allReports]);
+
   // Trả về reports dưới dạng filtered data để UI component sử dụng trực tiếp
   return { 
+    allReports,
     reports: filteredReports, 
     selectedDate, 
     setSelectedDate, 
     filter, 
     setFilter, 
     handleAction,
-    handleApproveAll
+    handleApproveAll,
+    handleRejectNonCompliantReports
   };
 };
 
